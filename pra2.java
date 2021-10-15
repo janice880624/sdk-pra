@@ -29,7 +29,6 @@ public class EventWorkflow implements ICustomAction{
 			IChange change = (IChange)session.getObject(ChangeConstants.CLASS_ECO, affectedObject.getName());
 			System.out.println("當前名稱" + affectedObject.getName());
 
-
 			ICell cell = change.getCell(CommonConstants.ATT_PAGE_THREE_MULTILIST01);
 			IAgileList cl = (IAgileList)cell.getValue();
 			System.out.println(cl);

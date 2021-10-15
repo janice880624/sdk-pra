@@ -20,7 +20,6 @@ public class EventWorkflow implements ICustomAction{
 	public ActionResult doAction(IAgileSession session, INode actionNode, IDataObject affectedObject) {
 		try {
 			// 利用 API Name 找到  Cover Page 上的人員
-//			IChange change = (IChange)session.getObject(IChange.OBJECT_TYPE, affectedObject.getName());
 			IChange change = (IChange)session.getObject(ChangeConstants.CLASS_ECO, affectedObject.getName());
 			System.out.println(change.getCell("PageTwo.list11"));
 
@@ -30,7 +29,7 @@ public class EventWorkflow implements ICustomAction{
 
 			//  增加 Approvers
 			if (status.equals("課級主管")) {
-				System.out.println("進到課級主管");
+				System.out.println("進到課級主管站");
 				IUser people1_name = (IUser)change.getCell("PageTwo.list11").getReferent();
 
 				Collection userCollection = new ArrayList();
@@ -38,9 +37,8 @@ public class EventWorkflow implements ICustomAction{
 
 				change.addReviewers(change.getDefaultNextStatus(), userCollection, null, null, false, "Add Approvers");
 				System.out.println("-----------");
-			}
-			else if (status.equals("部級主管")) {
-				System.out.println("進到部級主管");
+			} else if (status.equals("部級主管")) {
+				System.out.println("進到部級主管站");
 				IUser people2_name = (IUser)change.getCell("PageTwo.list12").getReferent();
 
 				Collection userCollection = new ArrayList();
@@ -49,20 +47,15 @@ public class EventWorkflow implements ICustomAction{
 
 				change.addReviewers(change.getDefaultNextStatus(), userCollection, null, null, false, "Add Approvers");
 				System.out.println("-----------");
-			}
-			else if (status.equals("處級主管")) {
-				System.out.println("進到處級主管");
+			} else if (status.equals("處級主管")) {
+				System.out.println("進到處級主管站");
 				IUser people3_name = (IUser)change.getCell("PageTwo.list13").getReferent();
 
 				Collection userCollection = new ArrayList();
 				userCollection.add(people3_name);
 				System.out.println(people3_name);
-
-//				change.addReviewers(change.getDefaultNextStatus(), userCollection, null, null, false, "Add Approvers");
 				System.out.println("-----------");
 			}
-//			System.out.println("-----------");
-
 
 		} catch (APIException e) {
 			e.printStackTrace();
