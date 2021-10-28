@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import com.agile.api.APIException;
 import com.agile.api.ChangeConstants;
 import com.agile.api.IAgileSession;
 import com.agile.api.IChange;
@@ -26,27 +27,27 @@ import com.anselm.tools.record.Log;
 
 public class CheckECO implements IEventAction{
 
+	private boolean fasle;
+
 	@Override
 	public EventActionResult doAction(IAgileSession session, INode actionNode, IEventInfo affectedObject) {
 		
 		// use log
 		Ini ini = new Ini("C:\\Agile\\Config.ini");
 		Log log = new Log();
+		StringBuilder error = new StringBuilder();
 		
 		try {
 			
 			log.logSeparatorBar();
 			log.setTopic("AnselmTools_ini_log_Tutorial_");
-			log.log("-------------------------µ{¦¡¶}©l-------------------------");
-			
-			/*****************************************************************************
-			 * Step.1 MPN Lifecycle ª¬ºA
-			 * Step.2 ÀË¬d Manufacturer Part ¬O§_¦³ªş¥ó
-			 ******************************************************************************/
-					
+			log.log("-------------------------ç¨‹å¼é–‹å§‹-------------------------");
+				
 			// init
 			ArrayList<String> incompatibleList = new ArrayList<String>(5);
 			ArrayList<String> noAttachments = new ArrayList<String>(5);
+			ArrayList<String> errorIPN = new ArrayList<String>(5);
+			
 			String errorlog = "";
 			HashMap params = new HashMap();  
 			
@@ -55,9 +56,15 @@ public class CheckECO implements IEventAction{
 			IChange change = (IChange) session.getObject(ChangeConstants.CLASS_ECO, obj.getName());
 			ITable table_eco = change.getTable(ChangeConstants.TABLE_AFFECTEDITEMS);
 			Iterator it_eco = table_eco.iterator();
+			
 			while(it_eco.hasNext()){
 				IRow row = (IRow) it_eco.next();
-				log.log(row.getValue(ChangeConstants.ATT_AFFECTED_ITEMS_ITEM_NUMBER));				
+				log.log(row.getValue(ChangeConstants.ATT_AFFECTED_ITEMS_ITEM_NUMBER));	
+				
+				String affIPN = (String) row.getValue(ChangeConstants.ATT_AFFECTED_ITEMS_TEXT06);
+				log.log(row.getValue(ChangeConstants.ATT_AFFECTED_ITEMS_TEXT06));
+				
+				IItem item = (IItem) session.getObject(ItemConstants.CLASS_PART, row.getValue(ChangeConstants.ATT_AFFECTED_ITEMS_ITEM_NUMBER));		
 				
 				IItem item1 = (IItem) row.getReferent();
 				ITable table = (ITable) item1.getTable(ItemConstants.TABLE_MANUFACTURERS);
@@ -67,21 +74,23 @@ public class CheckECO implements IEventAction{
 					int attNum = 0;
 					IRow row1 = (IRow) it.next();
 					
-					// ÀË¬d MPN Lifecycle ª¬ºA				
+					// æª¢æŸ¥ MPN Lifecycle ç‹€æ…‹				
 					String manuName = row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_NAME)+"";
 					log.log("Mfr. Name: " + manuName);
+					
 					String manuNum = row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_PART_NUMBER)+"";
 					log.log("Mfr. Part Number: " + manuNum);
+					
 					String manuLifeCycle = row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_TAB_LIST01)+"";
-					log.log("¥Ø«eª¬ºA¬O: " + manuLifeCycle);
+					log.log("ç›®å‰ç‹€æ…‹æ˜¯: " + manuLifeCycle);
 					
 					if (manuLifeCycle.equals("Disqualified") || manuLifeCycle.equals("Obsolete")) {
-						log.log("MPN Lifecycle ª¬ºA¤£²Å¦X±ø¥ó");
+						log.log("MPN Lifecycle ç‹€æ…‹ä¸ç¬¦åˆæ¢ä»¶");
 						incompatibleList.add(row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_NAME)+"");
 					} 
 					
 
-					// ÀË¬d Manufacturer Part ¬O§_¦³ªş¥ó					
+					// æª¢æŸ¥ Manufacturer Part æ˜¯å¦æœ‰é™„ä»¶					
 					params.put(ManufacturerPartConstants.ATT_GENERAL_INFO_MANUFACTURER_NAME, manuName);
 					params.put(ManufacturerPartConstants.ATT_GENERAL_INFO_MANUFACTURER_PART_NUMBER, manuNum);
 					IManufacturerPart mfrPrat = (IManufacturerPart) session.getObject(IManufacturerPart.OBJECT_TYPE, params);
@@ -91,7 +100,10 @@ public class CheckECO implements IEventAction{
 					
 					while (it_mfratt.hasNext()) {
 						IRow attrow = (IRow) it_mfratt.next();						
-						attNum += 1;						
+						attNum += 1;
+						if(checkIPN(attrow, affIPN, error, log)) {
+							errorIPN.add(row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_PART_NUMBER)+"");
+						}
 					}
 					
 					if (attNum == 0) {
@@ -99,15 +111,35 @@ public class CheckECO implements IEventAction{
 					}
 				}
 				
+				log.log("éŒ¯èª¤è³‡æ–™ç¢ºèª");
 				log.log(incompatibleList);
+				log.log(noAttachments);
+				log.log(errorIPN);
+				log.log("----------------------------");
 				
-				if (incompatibleList.size() == 0 || noAttachments.size() == 0) {
+				if (incompatibleList.size() == 0 && noAttachments.size() == 0 && errorIPN.size() == 0) {
 					IStatus nextStatus_eco = change.getDefaultNextStatus();
 					log.log("Next default status = " + nextStatus_eco.getName());
-					log.log("------------------------- ¶i¯¸§¹¦¨ -------------------------");
+					log.log("------------------------- é€²ç«™å®Œæˆ -------------------------");
 				} else {
-					log.log("------------------------- »İ­n­×¥¿ -------------------------");
-					errorlog = errorlog + "Mfr. Part Number " + incompatibleList + " MPN Lifecycle ª¬ºA«D Active ½Ğ½T»{, Manufacturer Part " + noAttachments + " µLªş¥ó ";
+					log.log("------------------------- éœ€è¦ä¿®æ­£ -------------------------");
+					
+					if (incompatibleList.size() == 0)
+						errorlog = errorlog + "";
+					else
+						errorlog = errorlog + "Mfr. Part Number " + incompatibleList + " MPN Lifecycle ç‹€æ…‹é Active è«‹ç¢ºèª, ";
+					
+					if (noAttachments.size() == 0)
+						errorlog = errorlog + "";
+					else
+						errorlog = errorlog + " Manufacturer Part " + noAttachments + " ç„¡é™„ä»¶, ";
+					
+					if (errorIPN.size() == 0)
+						errorlog = errorlog + "";
+					else
+						errorlog = errorlog + " Manufacturer Part " + errorIPN + " IPN æœ‰èª¤ ";
+										
+//					errorlog = errorlog + "Mfr. Part Number " + incompatibleList + " MPN Lifecycle ç‹€æ…‹é Active è«‹ç¢ºèª, Manufacturer Part " + noAttachments + " ç„¡é™„ä»¶, Manufacturer Part " + errorIPN + "IPN æœ‰èª¤";
 					throw new Exception(errorlog);
 				}
 			}
@@ -116,9 +148,25 @@ public class CheckECO implements IEventAction{
 			
 		} catch (Exception e) {
 			e.printStackTrace();
+			log.logException(e);
 			return new EventActionResult(affectedObject, new ActionResult(ActionResult.EXCEPTION, e));
-		}
+		} 
+		
 
+	}
+	
+	/************************************************************************
+	 æª¢æŸ¥ IPN
+	 ************************************************************************/
+	private boolean checkIPN(IRow attrow, String affIPN, StringBuilder error, Log log) throws APIException {
+		// TODO Auto-generated method stub
+		System.out.println(attrow.getValue(ItemConstants.ATT_ATTACHMENTS_TEXT01));
+		if (!attrow.getValue(ItemConstants.ATT_ATTACHMENTS_TEXT01).equals(affIPN)) {
+			log.log("IPN ä¸åŒ");
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 }
