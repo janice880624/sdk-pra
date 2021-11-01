@@ -84,31 +84,12 @@ public class CheckECO implements IEventAction{
 					String manuLifeCycle = row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_TAB_LIST01)+"";
 					log.log("目前狀態是: " + manuLifeCycle);
 					
-					if (manuLifeCycle.equals("Disqualified") || manuLifeCycle.equals("Obsolete")) {
-						log.log("MPN Lifecycle 狀態不符合條件");
-						incompatibleList.add(row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_NAME)+"");
-					} 
+					// 檢查 Manufacturer LifeCycle 狀態
+					checkLifeCycle(manuLifeCycle, manuName, incompatibleList, log);
 					
+					// 檢查 Manufacturer Part 是否有附件	
+					checkMfrPart(params, manuName, manuNum, session, attNum, affIPN, errorIPN, row1, noAttachments, error, log);
 
-					// 檢查 Manufacturer Part 是否有附件					
-					params.put(ManufacturerPartConstants.ATT_GENERAL_INFO_MANUFACTURER_NAME, manuName);
-					params.put(ManufacturerPartConstants.ATT_GENERAL_INFO_MANUFACTURER_PART_NUMBER, manuNum);
-					IManufacturerPart mfrPrat = (IManufacturerPart) session.getObject(IManufacturerPart.OBJECT_TYPE, params);
-					log.log(mfrPrat.getName());
-					ITable mfratt = mfrPrat.getTable(ItemConstants.TABLE_ATTACHMENTS);
-					Iterator<?> it_mfratt = mfratt.iterator();
-					
-					while (it_mfratt.hasNext()) {
-						IRow attrow = (IRow) it_mfratt.next();						
-						attNum += 1;
-						if(checkIPN(attrow, affIPN, error, log)) {
-							errorIPN.add(row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_PART_NUMBER)+"");
-						}
-					}
-					
-					if (attNum == 0) {
-						noAttachments.add(mfrPrat.getName());
-					}
 				}
 				
 				log.log("錯誤資料確認");
@@ -155,11 +136,46 @@ public class CheckECO implements IEventAction{
 
 	}
 	
+	
+	/************************************************************************
+	 檢查是否有附件
+	*************************************************************************/
+	public void checkMfrPart(HashMap params, String manuName, String manuNum, IAgileSession session, int attNum, String affIPN, ArrayList errorIPN, IRow row1, ArrayList noAttachments, StringBuilder error, Log log) throws APIException {
+		params.put(ManufacturerPartConstants.ATT_GENERAL_INFO_MANUFACTURER_NAME, manuName);
+		params.put(ManufacturerPartConstants.ATT_GENERAL_INFO_MANUFACTURER_PART_NUMBER, manuNum);
+		IManufacturerPart mfrPrat = (IManufacturerPart) session.getObject(IManufacturerPart.OBJECT_TYPE, params);
+		log.log(mfrPrat.getName());
+		ITable mfratt = mfrPrat.getTable(ItemConstants.TABLE_ATTACHMENTS);
+		Iterator<?> it_mfratt = mfratt.iterator();
+		
+		while (it_mfratt.hasNext()) {
+			IRow attrow = (IRow) it_mfratt.next();						
+			attNum += 1;
+			if(checkIPN(attrow, affIPN, error, log)) {
+				errorIPN.add(row1.getValue(ItemConstants.ATT_MANUFACTURERS_MFR_PART_NUMBER)+"");
+			}
+		}
+		
+		if (attNum == 0) {
+			noAttachments.add(mfrPrat.getName());
+		}		
+	}
+
+	/************************************************************************
+	 檢查 Lifecycle
+	*************************************************************************/
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public void checkLifeCycle(String manuLifeCycle, String manuName, ArrayList incompatibleList, Log log) throws APIException {
+		if (manuLifeCycle.equals("Disqualified") || manuLifeCycle.equals("Obsolete")) {
+			log.log("MPN Lifecycle 狀態不符合條件");
+			incompatibleList.add(manuName);
+		} 
+	}
+
 	/************************************************************************
 	 檢查 IPN
-	 ************************************************************************/
-	private boolean checkIPN(IRow attrow, String affIPN, StringBuilder error, Log log) throws APIException {
-		// TODO Auto-generated method stub
+	*************************************************************************/
+	public boolean checkIPN(IRow attrow, String affIPN, StringBuilder error, Log log) throws APIException {
 		System.out.println(attrow.getValue(ItemConstants.ATT_ATTACHMENTS_TEXT01));
 		if (!attrow.getValue(ItemConstants.ATT_ATTACHMENTS_TEXT01).equals(affIPN)) {
 			log.log("IPN 不同");
@@ -170,4 +186,3 @@ public class CheckECO implements IEventAction{
 	}
 
 }
-
